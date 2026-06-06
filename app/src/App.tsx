@@ -181,7 +181,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <QrCode className="w-5 h-5" />
             <span className="text-sm md:text-base font-bold tracking-widest terminal-glow">
-              [QRT-TERMINAL // v0.1.0]
+              [DATA-WORMHOLE // v0.1.0]
             </span>
           </div>
           <div className="flex items-center gap-2">
