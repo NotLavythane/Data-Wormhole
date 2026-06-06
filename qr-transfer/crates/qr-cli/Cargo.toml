@@ -1,0 +1,30 @@
+[package]
+name = "qr-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line reference implementation for QR Transfer"
+
+[[bin]]
+name = "qr-transfer"
+path = "src/main.rs"
+
+[dependencies]
+qr-crypto = { workspace = true }
+qr-protocol = { workspace = true }
+qr-codec = { workspace = true }
+qr-fountain = { workspace = true }
+qr-compression = { workspace = true }
+clap = { workspace = true }
+indicatif = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+default = ["export-controlled"]
+export-controlled = ["qr-crypto/export-controlled"]
+export-safe = ["qr-crypto/export-safe"]
