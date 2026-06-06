@@ -1,0 +1,19 @@
+[package]
+name = "qr-protocol"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core protocol engine: frame format, state machine, capability handshake"
+
+[dependencies]
+qr-crypto = { workspace = true }
+qr-fountain = { workspace = true }
+serde = { workspace = true }
+cbor4ii = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]

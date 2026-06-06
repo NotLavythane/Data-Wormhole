@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%; /* Pure black */
+    --foreground: 120 100% 50%; /* Neon Green */
+    --card: 0 0% 0%; /* Black cards */
+    --card-foreground: 120 100% 50%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 120 100% 50%;
+    --primary: 120 100% 50%; /* Neon Green */
+    --primary-foreground: 0 0% 0%; /* Black text on green background */
+    --secondary: 120 30% 10%;
+    --secondary-foreground: 120 100% 50%;
+    --muted: 120 30% 10%;
+    --muted-foreground: 120 100% 35%;
+    --accent: 120 30% 15%;
+    --accent-foreground: 120 100% 60%;
+    --destructive: 0 100% 50%; /* Pure Red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 120 100% 35%; /* Green border */
+    --input: 120 100% 25%;
+    --ring: 120 100% 50%;
+    --radius: 0px; /* Sharp corners for CLI look */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Courier New', Courier, monospace;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+    background-color: #000000;
+  }
+}
+
+/* Custom retro scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+  border-left: 1px solid hsl(var(--border));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 1px solid #000000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* CRT scanlines screen overlay (very subtle) */
+.crt-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+.crt-screen::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  z-index: 9999;
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+}
+
+/* Retro green glow effects */
+.terminal-glow {
+  text-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+}
+
+.terminal-border-glow {
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+/* Cursor blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Canvas crisp edges for QR codes */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 4px solid #ffffff; /* QR codes need high contrast border to scan */
+  background: #ffffff;
+  padding: 4px;
+}
+
+/* Video adjustments */
+video {
+  image-rendering: pixelated;
+  border: 1px solid hsl(var(--border));
+}

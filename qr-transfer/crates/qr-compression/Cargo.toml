@@ -1,0 +1,15 @@
+[package]
+name = "qr-compression"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Compression with file type auto-detection for QR Transfer"
+
+[dependencies]
+zstd = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]

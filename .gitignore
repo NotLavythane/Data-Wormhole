@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+app/node_modules/
+
+# Production/Build outputs
+dist/
+app/dist/
+target/
+qr-transfer/target/
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.log
+
+# Editor & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

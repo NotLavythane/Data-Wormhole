@@ -1,0 +1,17 @@
+[package]
+name = "qr-codec"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "QR code generation, decoding, grid packing, and interleave patterns"
+
+[dependencies]
+qr-protocol = { workspace = true }
+qrcode = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
