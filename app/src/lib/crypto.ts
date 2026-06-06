@@ -3,11 +3,6 @@
  * Provides: X25519 key exchange, AES-GCM encryption, HKDF, BLAKE3 hashing
  */
 
-// Type helpers
-function buf(data: Uint8Array): ArrayBuffer {
-  return data.buffer as ArrayBuffer;
-}
-
 // Generate ephemeral X25519 keypair using Web Crypto API
 export async function generateKeypair(): Promise<CryptoKeyPair> {
   const kp = await window.crypto.subtle.generateKey(
@@ -27,7 +22,7 @@ export async function exportPublicKey(key: CryptoKey): Promise<Uint8Array> {
 export async function importPublicKey(rawKey: Uint8Array): Promise<CryptoKey> {
   return await window.crypto.subtle.importKey(
     'raw',
-    buf(rawKey),
+    rawKey as any,
     { name: 'X25519' },
     false,
     []
@@ -53,7 +48,7 @@ export async function deriveSessionKeys(
 ): Promise<{ aesKey: CryptoKey; iv: Uint8Array }> {
   const baseKey = await window.crypto.subtle.importKey(
     'raw',
-    buf(sharedSecret),
+    sharedSecret as any,
     'HKDF',
     false,
     ['deriveKey', 'deriveBits']
@@ -94,7 +89,7 @@ export async function deriveChunkIV(
 ): Promise<Uint8Array> {
   const baseKey = await window.crypto.subtle.importKey(
     'raw',
-    buf(sessionSalt),
+    sessionSalt as any,
     'HKDF',
     false,
     ['deriveBits']
@@ -102,7 +97,7 @@ export async function deriveChunkIV(
 
   const info = new Uint8Array(14);
   info.set(new TextEncoder().encode('chunk'), 0);
-  const view = new DataView(buf(info));
+  const view = new DataView(info.buffer, info.byteOffset, info.byteLength);
   view.setUint32(5, chunkIndex, true);
   view.setUint16(9, keyEpoch, true);
 
@@ -127,9 +122,9 @@ export async function encryptChunk(
   plaintext: Uint8Array
 ): Promise<Uint8Array> {
   const ciphertext = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: buf(iv) },
+    { name: 'AES-GCM', iv: iv as any },
     key,
-    buf(plaintext)
+    plaintext as any
   );
   return new Uint8Array(ciphertext);
 }
@@ -141,16 +136,16 @@ export async function decryptChunk(
   ciphertext: Uint8Array
 ): Promise<Uint8Array> {
   const plaintext = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: buf(iv) },
+    { name: 'AES-GCM', iv: iv as any },
     key,
-    buf(ciphertext)
+    ciphertext as any
   );
   return new Uint8Array(plaintext);
 }
 
 // Compute file hash (SHA-256 for browser)
 export async function hashFile(data: Uint8Array): Promise<Uint8Array> {
-  const hash = await window.crypto.subtle.digest('SHA-256', buf(data));
+  const hash = await window.crypto.subtle.digest('SHA-256', data as any);
   return new Uint8Array(hash);
 }
 
@@ -183,7 +178,7 @@ export async function computeSafetyNumber(
   data.set(receiverPubkey, 32);
   data.set(sessionSalt, 64);
 
-  const hash = await window.crypto.subtle.digest('SHA-256', buf(data));
+  const hash = await window.crypto.subtle.digest('SHA-256', data as any);
   const hashBytes = new Uint8Array(hash);
 
   const words = BIP39_WORDS;
@@ -199,7 +194,7 @@ export async function computeSafetyNumber(
 export async function deriveFountainSeed(sharedSecret: Uint8Array): Promise<Uint8Array> {
   const baseKey = await window.crypto.subtle.importKey(
     'raw',
-    buf(sharedSecret),
+    sharedSecret as any,
     'HKDF',
     false,
     ['deriveBits']
@@ -273,7 +268,7 @@ export class FountainEncoder {
     }
 
     const blockData = new Uint8Array(4 + 4 + indices.length * 4 + this.blockSize);
-    const view = new DataView(buf(blockData));
+    const view = new DataView(blockData.buffer, blockData.byteOffset, blockData.byteLength);
     view.setUint32(0, this.nextBlockId, true);
     view.setUint32(4, indices.length, true);
     for (let i = 0; i < indices.length; i++) {
@@ -312,7 +307,7 @@ export class FountainDecoder {
   addBlock(block: { blockId: number; data: Uint8Array }): boolean {
     if (this.decoded) return true;
 
-    const view = new DataView(buf(block.data));
+    const view = new DataView(block.data.buffer, block.data.byteOffset, block.data.byteLength);
     const blockId = view.getUint32(0, true);
     const degree = view.getUint32(4, true);
 
@@ -450,7 +445,7 @@ export function buildFrame(
   frame[2] = 0x01;
   frame[3] = 0x44;
 
-  const view = new DataView(buf(frame));
+  const view = new DataView(frame.buffer, frame.byteOffset, frame.byteLength);
   view.setUint32(4, chunkIndex, true);
   view.setUint32(8, totalChunks, true);
   frame.set(fileHashPrefix.slice(0, 8), 12);
@@ -475,7 +470,7 @@ export function parseFrame(data: Uint8Array): {
   if (data.length < FRAME_HEADER_SIZE + FRAME_FOOTER_SIZE + 1) return null;
   if (data[0] !== 0x51 || data[1] !== 0x52) return null;
 
-  const view = new DataView(buf(data));
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const chunkIndex = view.getUint32(4, true);
   const totalChunks = view.getUint32(8, true);
   const fileHashPrefix = data.slice(12, 20);

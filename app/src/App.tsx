@@ -875,7 +875,8 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
   });
   const [safetyNumber, setSafetyNumber] = useState<string | null>(null);
   const [showSafetyVerify, setShowSafetyVerify] = useState(false);
-  const [receivedFile, setReceivedFile] = useState<{ name: string; size: number; url: string } | null>(null);
+  const [receivedFile, setReceivedFile] = useState<{ name: string; size: number; url: string; isText?: boolean; textContent?: string } | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   
   // Camera & Device initialization status
   const [cameraState, setCameraState] = useState<'idle' | 'requesting' | 'active' | 'denied' | 'insecure' | 'error'>('idle');
@@ -951,19 +952,47 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
           logger.warn("Skipping file integrity check: hash prefix parameter not found in received frames.");
         }
         
+        const isText = /\.(txt|md|json|html|css|js|ts|csv|xml|yaml|yml)$/i.test(filename);
+        let textContent = '';
+        if (isText) {
+          try {
+            textContent = new TextDecoder().decode(fileContent);
+          } catch (e) {
+            logger.warn("Failed to decode received file content as UTF-8 string.");
+          }
+        }
+
         logger.info(`Success! Unpacked payload metadata: filename="${filename}", size=${formatBytes(fileContent.length)}`);
         
-        const blob = new Blob([fileContent.buffer as ArrayBuffer]);
+        const blob = new Blob([fileContent as any]);
         const url = URL.createObjectURL(blob);
-        setReceivedFile({ name: filename, size: fileContent.length, url });
+        setReceivedFile({ name: filename, size: fileContent.length, url, isText, textContent });
         updateTransferState('complete');
+        if (activeStreamRef.current) {
+          activeStreamRef.current.getTracks().forEach(track => track.stop());
+          activeStreamRef.current = null;
+        }
+        if (scanRef.current) {
+          cancelAnimationFrame(scanRef.current);
+          scanRef.current = null;
+        }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         logger.error(`Decryption or metadata extraction failed: ${errMsg}`);
+        setErrorDetails(errMsg);
         updateTransferState('error');
+        if (activeStreamRef.current) {
+          activeStreamRef.current.getTracks().forEach(track => track.stop());
+          activeStreamRef.current = null;
+        }
+        if (scanRef.current) {
+          cancelAnimationFrame(scanRef.current);
+          scanRef.current = null;
+        }
       }
     } else {
       logger.error("Unable to finalize transfer: result data or public key parameters missing.");
+      setErrorDetails("Result data or public key parameters missing.");
       updateTransferState('error');
     }
   }, []);
@@ -989,7 +1018,7 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
           senderPubRef.current = senderPub;
 
           const senderPubKey = await window.crypto.subtle.importKey(
-            'raw', senderPub.buffer as ArrayBuffer, { name: 'X25519' }, false, []
+            'raw', senderPub as any, { name: 'X25519' }, false, []
           );
           await deriveSharedSecret(kp.privateKey, senderPubKey);
 
@@ -1000,8 +1029,18 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
           setSafetyNumber(sn);
           logger.info(`Derived key and computed safety checksum words: "${sn}"`);
         } catch (e) {
-          logger.error(`Handshake key import/derivation failed: ${e instanceof Error ? e.message : String(e)}`);
+          const errMsg = e instanceof Error ? e.message : String(e);
+          logger.error(`Handshake key import/derivation failed: ${errMsg}`);
+          setErrorDetails(errMsg);
           updateTransferState('error');
+          if (activeStreamRef.current) {
+            activeStreamRef.current.getTracks().forEach(track => track.stop());
+            activeStreamRef.current = null;
+          }
+          if (scanRef.current) {
+            cancelAnimationFrame(scanRef.current);
+            scanRef.current = null;
+          }
         }
       }
     }
@@ -1242,7 +1281,7 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
         return {
           icon: <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />,
           title: 'DECRYPTION_FAILED',
-          message: 'Failed to decrypt payload or corrupt header metadata.',
+          message: errorDetails || 'Failed to decrypt payload or corrupt header metadata.',
         };
     }
   };
@@ -1368,7 +1407,7 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
 
       {/* Sync Status console box */}
       {!receivedFile && (cameraState === 'active' || cameraState === 'requesting' || cameraState === 'idle') && (
-        <div className={ui.panel}>
+        <div className={`${ui.panel} ${transferState === 'error' ? 'border-red-500 text-red-500 bg-red-950/5' : ''}`}>
           <div className="flex items-center gap-4 text-xs">
             <div>{stateUI.icon}</div>
             <div className="flex-1 min-w-0">
@@ -1376,6 +1415,34 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
               <p className="opacity-70 text-[10px] md:text-xs">{stateUI.message}</p>
             </div>
           </div>
+
+          {transferState === 'error' && (
+            <div className="mt-4 pt-3 border-t border-red-500/30 flex gap-3">
+              <button
+                className={ui.btn}
+                onClick={() => {
+                  setErrorDetails(null);
+                  updateTransferState('scanning');
+                  setShowSafetyVerify(false);
+                  setSafetyNumber(null);
+                  setProgress({
+                    state: 'scanning',
+                    bytesTransferred: 0,
+                    totalBytes: 0,
+                    throughput: 0,
+                    timeRemaining: 0,
+                    blocksReceived: 0,
+                    totalBlocks: 0,
+                  });
+                  decoderRef.current = null;
+                  fileHashPrefixRef.current = null;
+                  startCamera();
+                }}
+              >
+                [ RESET & RETRY ]
+              </button>
+            </div>
+          )}
 
           {(transferState === 'receiving' || transferState === 'reconstructing') && (
             <div className="mt-4 space-y-2 border-t pt-3">
@@ -1437,6 +1504,15 @@ function ReceiveScreen({ onBack, ui }: ReceiveScreenProps) {
             <p className="font-bold truncate">[NAME]: {receivedFile.name}</p>
             <p>[SIZE]: {formatBytes(receivedFile.size)}</p>
             <p>[INTEGRITY]: SHA-256 HASH VERIFIED</p>
+            
+            {receivedFile.isText && receivedFile.textContent && (
+              <div className="mt-4 space-y-2">
+                <p className={`text-[10px] ${ui.text} font-mono tracking-wider`}>[CONTENT PREVIEW]:</p>
+                <div className={`max-h-60 overflow-y-auto p-3 border ${ui.borderMuted} bg-black font-mono text-[11px] leading-relaxed ${ui.text} whitespace-pre-wrap rounded custom-scrollbar`}>
+                  {receivedFile.textContent}
+                </div>
+              </div>
+            )}
           </div>
           <button
             className={ui.btnPrimary}
